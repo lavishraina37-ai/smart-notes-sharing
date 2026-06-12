@@ -25,7 +25,7 @@ export default function Page() {
 
   const [editId, setEditId] = useState<string | null>(null);
 
-  // 📥 fetch notes
+  // 📥 fetch
   const fetchNotes = async () => {
     const { data } = await supabase
       .from("notes")
@@ -52,33 +52,53 @@ export default function Page() {
     };
   }, []);
 
-  // ➕ save / update
+  // ➕ ADD (INSTANT UI UPDATE)
   const saveNote = async () => {
     if (!title || !subject || !description) return;
 
     if (editId) {
+      // UPDATE
       await supabase
         .from("notes")
         .update({ title, subject, description })
         .eq("id", editId);
+
+      // 🔥 instant UI update
+      setNotes((prev) =>
+        prev.map((n) =>
+          n.id === editId ? { ...n, title, subject, description } : n
+        )
+      );
+
+      setEditId(null);
     } else {
-      await supabase.from("notes").insert([
-        { title, subject, description },
-      ]);
+      // CREATE
+      const { data } = await supabase
+        .from("notes")
+        .insert([{ title, subject, description }])
+        .select()
+        .single();
+
+      // 🔥 instant UI update
+      if (data) {
+        setNotes((prev) => [data, ...prev]);
+      }
     }
 
     setTitle("");
     setSubject("");
     setDescription("");
-    setEditId(null);
   };
 
-  // ❌ delete
+  // ❌ DELETE (INSTANT)
   const deleteNote = async (id: string) => {
     await supabase.from("notes").delete().eq("id", id);
+
+    // 🔥 instant UI update
+    setNotes((prev) => prev.filter((n) => n.id !== id));
   };
 
-  // ✏️ edit
+  // ✏️ EDIT
   const editNote = (note: Note) => {
     setTitle(note.title);
     setSubject(note.subject);
@@ -86,7 +106,7 @@ export default function Page() {
     setEditId(note.id);
   };
 
-  // 🔍 search filter
+  // 🔍 SEARCH
   const filtered = notes.filter(
     (n) =>
       n.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -94,212 +114,105 @@ export default function Page() {
   );
 
   return (
-    <div style={styles.page}>
+    <div style={{ padding: 20, background: "#f3f4f6", minHeight: "100vh" }}>
 
-      {/* 🌈 HEADER */}
-      <div style={styles.header}>
-        <h1 style={styles.title}>🧠 Smart Notes</h1>
-        <p style={styles.subtitle}>Write • Search • Edit • Organize</p>
-      </div>
+      <h1 style={{ textAlign: "center", fontSize: 28, fontWeight: "bold" }}>
+        🧠 Smart Notes
+      </h1>
 
-      {/* 🔍 SEARCH */}
+      {/* SEARCH */}
       <input
-        placeholder="🔍 Search by title or subject..."
+        placeholder="Search notes..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        style={styles.search}
+        style={{
+          width: "100%",
+          padding: 10,
+          margin: "20px 0",
+          border: "1px solid #ccc",
+          borderRadius: 8,
+        }}
       />
 
-      {/* ➕ FORM */}
-      <div style={styles.card}>
+      {/* FORM */}
+      <div style={{ background: "white", padding: 20, borderRadius: 10 }}>
 
         <input
-          placeholder="✏️ Enter Title"
+          placeholder="Title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          style={styles.input}
+          style={inputStyle}
         />
 
         <input
-          placeholder="📚 Enter Subject"
+          placeholder="Subject"
           value={subject}
           onChange={(e) => setSubject(e.target.value)}
-          style={styles.input}
+          style={inputStyle}
         />
 
         <textarea
-          placeholder="📝 Write your note here..."
+          placeholder="Description"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          style={styles.textarea}
+          style={{ ...inputStyle, height: 100 }}
         />
 
-        <button onClick={saveNote} style={styles.button}>
-          {editId ? "Update Note ✨" : "Add Note 🚀"}
+        <button onClick={saveNote} style={buttonStyle}>
+          {editId ? "Update Note" : "Add Note"}
         </button>
+
       </div>
 
-      {/* 📄 NOTES */}
-      {filtered.length === 0 ? (
-        <p style={{ textAlign: "center", color: "#6b7280" }}>
-          No notes found 😴
-        </p>
-      ) : (
-        filtered.map((note) => (
-          <div
-            key={note.id}
-            style={styles.noteCard}
-            onMouseEnter={(e) =>
-              (e.currentTarget.style.transform = "scale(1.02)")
-            }
-            onMouseLeave={(e) =>
-              (e.currentTarget.style.transform = "scale(1)")
-            }
-          >
-            <h2 style={styles.noteTitle}>{note.title}</h2>
+      {/* NOTES */}
+      <div style={{ marginTop: 20 }}>
+        {filtered.map((note) => (
+          <div key={note.id} style={cardStyle}>
 
-            <span style={styles.badge}>{note.subject}</span>
+            <h3>{note.title}</h3>
+            <small style={{ color: "blue" }}>{note.subject}</small>
+            <p>{note.description}</p>
 
-            <p style={styles.noteDesc}>{note.description}</p>
-
-            <div style={styles.actions}>
-              <button onClick={() => editNote(note)} style={styles.edit}>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => editNote(note)} style={{ color: "green" }}>
                 Edit
               </button>
 
-              <button onClick={() => deleteNote(note.id)} style={styles.delete}>
+              <button onClick={() => deleteNote(note.id)} style={{ color: "red" }}>
                 Delete
               </button>
             </div>
+
           </div>
-        ))
-      )}
+        ))}
+      </div>
+
     </div>
   );
 }
 
-/* 🎨 STYLES */
-const styles: any = {
-  page: {
-    minHeight: "100vh",
-    padding: 20,
-    background: "linear-gradient(to bottom right, #eef2ff, #f8fafc)",
-    fontFamily: "sans-serif",
-  },
+// 🎨 styles
+const inputStyle = {
+  width: "100%",
+  padding: 10,
+  marginBottom: 10,
+  border: "1px solid #ccc",
+  borderRadius: 8,
+};
 
-  header: {
-    textAlign: "center",
-    marginBottom: 20,
-  },
+const buttonStyle = {
+  width: "100%",
+  padding: 10,
+  background: "#2563eb",
+  color: "white",
+  border: "none",
+  borderRadius: 8,
+  cursor: "pointer",
+};
 
-  title: {
-    fontSize: 30,
-    fontWeight: "bold",
-    color: "#111827",
-  },
-
-  subtitle: {
-    color: "#6b7280",
-    marginTop: 5,
-  },
-
-  search: {
-    width: "100%",
-    padding: 12,
-    borderRadius: 10,
-    border: "1px solid #c7d2fe",
-    marginBottom: 15,
-    outline: "none",
-    background: "white",
-    color: "#111",
-  },
-
-  card: {
-    background: "white",
-    padding: 15,
-    borderRadius: 12,
-    marginBottom: 20,
-    boxShadow: "0 4px 10px rgba(0,0,0,0.05)",
-  },
-
-  input: {
-    width: "100%",
-    padding: 12,
-    marginBottom: 10,
-    borderRadius: 10,
-    border: "1px solid #ddd",
-    outline: "none",
-    color: "#111",
-  },
-
-  textarea: {
-    width: "100%",
-    padding: 12,
-    height: 100,
-    borderRadius: 10,
-    border: "1px solid #ddd",
-    outline: "none",
-    marginBottom: 10,
-    color: "#111",
-  },
-
-  button: {
-    width: "100%",
-    padding: 12,
-    background: "#6366f1",
-    color: "white",
-    border: "none",
-    borderRadius: 10,
-    cursor: "pointer",
-    fontWeight: "bold",
-  },
-
-  noteCard: {
-    background: "white",
-    padding: 15,
-    borderRadius: 12,
-    marginBottom: 12,
-    transition: "0.2s",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
-  },
-
-  noteTitle: {
-    fontWeight: "bold",
-    fontSize: 18,
-  },
-
-  badge: {
-    display: "inline-block",
-    marginTop: 5,
-    fontSize: 12,
-    padding: "3px 8px",
-    borderRadius: 6,
-    background: "#e0e7ff",
-    color: "#4338ca",
-  },
-
-  noteDesc: {
-    marginTop: 10,
-    color: "#374151",
-  },
-
-  actions: {
-    marginTop: 10,
-    display: "flex",
-    gap: 10,
-  },
-
-  edit: {
-    color: "green",
-    cursor: "pointer",
-    border: "none",
-    background: "transparent",
-  },
-
-  delete: {
-    color: "red",
-    cursor: "pointer",
-    border: "none",
-    background: "transparent",
-  },
+const cardStyle = {
+  background: "white",
+  padding: 15,
+  borderRadius: 10,
+  marginTop: 10,
 };
