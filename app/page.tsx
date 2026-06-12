@@ -251,7 +251,7 @@ const styles: any = {
     padding: 12,
     marginBottom: 10,
     borderRadius: 10,
-    border: "1px solid #ddd",
+    border: "1px solid #0b0b0b",
     outline: "none",
   },
 
