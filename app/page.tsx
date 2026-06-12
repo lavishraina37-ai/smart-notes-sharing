@@ -3,144 +3,216 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 
-// ✅ Supabase setup
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 type Note = {
   id: string;
   title: string;
-  content: string;
-  created_at?: string;
+  subject: string;
+  description: string;
 };
 
 export default function Page() {
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
   const [notes, setNotes] = useState<Note[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState("");
 
-  // ✅ Fetch notes
+  const [title, setTitle] = useState("");
+  const [subject, setSubject] = useState("");
+  const [description, setDescription] = useState("");
+
+  const [editId, setEditId] = useState<string | null>(null);
+
+  // 📥 FETCH NOTES
   const fetchNotes = async () => {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("notes")
       .select("*")
       .order("created_at", { ascending: false });
 
-    if (error) {
-      console.log(error.message);
-    } else {
-      setNotes(data || []);
-    }
+    setNotes(data || []);
   };
 
   useEffect(() => {
     fetchNotes();
+
+    // ⚡ REAL-TIME UPDATES
+    const channel = supabase
+      .channel("notes-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "notes" },
+        () => fetchNotes()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
-  // ✅ Add note
-  const addNote = async () => {
-    if (!title || !content) return;
+  // ➕ ADD / UPDATE NOTE
+  const saveNote = async () => {
+    if (!title || !subject || !description) return;
 
-    setLoading(true);
-
-    const { error } = await supabase.from("notes").insert([
-      {
-        title,
-        content,
-      },
-    ]);
-
-    setLoading(false);
-
-    if (error) {
-      alert(error.message);
+    if (editId) {
+      await supabase
+        .from("notes")
+        .update({ title, subject, description })
+        .eq("id", editId);
     } else {
-      setTitle("");
-      setContent("");
-      fetchNotes(); // refresh list
+      await supabase.from("notes").insert([
+        { title, subject, description },
+      ]);
     }
+
+    setTitle("");
+    setSubject("");
+    setDescription("");
+    setEditId(null);
   };
 
-  // ✅ Delete note
+  // ❌ DELETE
   const deleteNote = async (id: string) => {
-    const { error } = await supabase.from("notes").delete().eq("id", id);
-
-    if (error) {
-      alert(error.message);
-    } else {
-      setNotes(notes.filter((n) => n.id !== id));
-    }
+    await supabase.from("notes").delete().eq("id", id);
   };
+
+  // ✏️ EDIT
+  const editNote = (note: Note) => {
+    setTitle(note.title);
+    setSubject(note.subject);
+    setDescription(note.description);
+    setEditId(note.id);
+  };
+
+  // 🔍 SEARCH FILTER
+  const filteredNotes = notes.filter(
+    (n) =>
+      n.title.toLowerCase().includes(search.toLowerCase()) ||
+      n.subject.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
-    <main style={{ padding: "20px", maxWidth: "600px", margin: "auto" }}>
-      <h1>🧠 Smart Notes App</h1>
+    <div style={{ padding: 20, background: "#f3f4f6", minHeight: "100vh" }}>
 
-      {/* INPUT SECTION */}
+      {/* HEADER */}
+      <h1 style={{ textAlign: "center", fontSize: 28, fontWeight: "bold" }}>
+        🧠 Smart Notes App
+      </h1>
+
+      {/* SEARCH */}
       <input
-        placeholder="Enter Title..."
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        style={{ width: "100%", padding: "10px", marginTop: "10px" }}
-      />
-
-      <textarea
-        placeholder="Write your content..."
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-        style={{ width: "100%", padding: "10px", marginTop: "10px" }}
-      />
-
-      <button
-        onClick={addNote}
-        disabled={loading}
+        placeholder="Search notes..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
         style={{
-          marginTop: "10px",
-          padding: "10px",
           width: "100%",
-          background: "black",
-          color: "white",
+          padding: 10,
+          marginTop: 20,
+          marginBottom: 20,
+          border: "1px solid #ccc",
+          borderRadius: 8,
+          background: "white",
+        }}
+      />
+
+      {/* FORM */}
+      <div
+        style={{
+          background: "white",
+          padding: 20,
+          borderRadius: 10,
+          marginBottom: 20,
         }}
       >
-        ➕ {loading ? "Adding..." : "Add Note"}
-      </button>
 
-      {/* NOTES LIST */}
-      <div style={{ marginTop: "20px" }}>
-        {notes.length === 0 ? (
-          <p>No notes yet 😴 Add your first note!</p>
-        ) : (
-          notes.map((note) => (
-            <div
-              key={note.id}
-              style={{
-                border: "1px solid #ddd",
-                padding: "10px",
-                marginTop: "10px",
-                borderRadius: "8px",
-              }}
-            >
-              <h3>{note.title}</h3>
-              <p>{note.content}</p>
+        <input
+          placeholder="Title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          style={inputStyle}
+        />
 
-              <button
-                onClick={() => deleteNote(note.id)}
-                style={{
-                  marginTop: "5px",
-                  padding: "5px 10px",
-                  background: "red",
-                  color: "white",
-                  border: "none",
-                }}
-              >
+        <input
+          placeholder="Subject"
+          value={subject}
+          onChange={(e) => setSubject(e.target.value)}
+          style={inputStyle}
+        />
+
+        <textarea
+          placeholder="Description"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          style={{ ...inputStyle, height: 100 }}
+        />
+
+        <button onClick={saveNote} style={buttonStyle}>
+          {editId ? "Update Note" : "Add Note"}
+        </button>
+
+      </div>
+
+      {/* NOTES */}
+      {filteredNotes.length === 0 ? (
+        <p style={{ textAlign: "center", color: "gray" }}>
+          No notes found 😴
+        </p>
+      ) : (
+        filteredNotes.map((note) => (
+          <div key={note.id} style={cardStyle}>
+
+            <h2 style={{ fontWeight: "bold" }}>{note.title}</h2>
+
+            <span style={{ fontSize: 12, color: "blue" }}>
+              {note.subject}
+            </span>
+
+            <p style={{ marginTop: 10 }}>{note.description}</p>
+
+            <div style={{ marginTop: 10, display: "flex", gap: 10 }}>
+              <button onClick={() => editNote(note)} style={{ color: "green" }}>
+                Edit
+              </button>
+
+              <button onClick={() => deleteNote(note.id)} style={{ color: "red" }}>
                 Delete
               </button>
             </div>
-          ))
-        )}
-      </div>
-    </main>
+
+          </div>
+        ))
+      )}
+    </div>
   );
 }
+
+// 🎨 Styles
+const inputStyle = {
+  width: "100%",
+  padding: 10,
+  marginBottom: 10,
+  border: "1px solid #ccc",
+  borderRadius: 8,
+  background: "white",
+  color: "#111",
+};
+
+const buttonStyle = {
+  width: "100%",
+  padding: 10,
+  background: "#2563eb",
+  color: "white",
+  border: "none",
+  borderRadius: 8,
+  cursor: "pointer",
+};
+
+const cardStyle = {
+  background: "white",
+  padding: 15,
+  borderRadius: 10,
+  marginBottom: 10,
+};
