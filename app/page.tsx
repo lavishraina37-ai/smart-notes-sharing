@@ -1,130 +1,146 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@supabase/supabase-js";
 
-export default function NotesPage() {
+// ✅ Supabase setup
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+type Note = {
+  id: string;
+  title: string;
+  content: string;
+  created_at?: string;
+};
+
+export default function Page() {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [notes, setNotes] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [loading, setLoading] = useState(false);
 
+  // ✅ Fetch notes
   const fetchNotes = async () => {
-    setLoading(true);
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("notes")
       .select("*")
       .order("created_at", { ascending: false });
 
-    setNotes(data || []);
-    setLoading(false);
+    if (error) {
+      console.log(error.message);
+    } else {
+      setNotes(data || []);
+    }
   };
 
   useEffect(() => {
     fetchNotes();
   }, []);
 
+  // ✅ Add note
   const addNote = async () => {
-    if (!title.trim() || !content.trim()) return;
+    if (!title || !content) return;
 
-    await supabase.from("notes").insert([{ title, content }]);
+    setLoading(true);
 
-    setTitle("");
-    setContent("");
-    fetchNotes();
+    const { error } = await supabase.from("notes").insert([
+      {
+        title,
+        content,
+      },
+    ]);
+
+    setLoading(false);
+
+    if (error) {
+      alert(error.message);
+    } else {
+      setTitle("");
+      setContent("");
+      fetchNotes(); // refresh list
+    }
   };
 
+  // ✅ Delete note
   const deleteNote = async (id: string) => {
-    await supabase.from("notes").delete().eq("id", id);
-    fetchNotes();
+    const { error } = await supabase.from("notes").delete().eq("id", id);
+
+    if (error) {
+      alert(error.message);
+    } else {
+      setNotes(notes.filter((n) => n.id !== id));
+    }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-100 p-6">
+    <main style={{ padding: "20px", maxWidth: "600px", margin: "auto" }}>
+      <h1>🧠 Smart Notes App</h1>
 
-      {/* HEADER */}
-      <h1 className="text-4xl font-extrabold text-center mb-8 text-gray-800">
-        🧠 Smart Notes App
-      </h1>
+      {/* INPUT SECTION */}
+      <input
+        placeholder="Enter Title..."
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        style={{ width: "100%", padding: "10px", marginTop: "10px" }}
+      />
 
-      {/* INPUT CARD */}
-      <div className="max-w-xl mx-auto bg-white rounded-2xl shadow-lg p-5 hover:shadow-2xl transition">
+      <textarea
+        placeholder="Write your content..."
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+        style={{ width: "100%", padding: "10px", marginTop: "10px" }}
+      />
 
-        <input
-          className="w-full border rounded-lg p-3 mb-3 focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
-          placeholder="Enter Title..."
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-        />
+      <button
+        onClick={addNote}
+        disabled={loading}
+        style={{
+          marginTop: "10px",
+          padding: "10px",
+          width: "100%",
+          background: "black",
+          color: "white",
+        }}
+      >
+        ➕ {loading ? "Adding..." : "Add Note"}
+      </button>
 
-        <textarea
-          className="w-full border rounded-lg p-3 mb-3 focus:outline-none focus:ring-2 focus:ring-purple-400 transition"
-          placeholder="Write your content..."
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-        />
-
-        {/* LIVE PREVIEW */}
-        {(title || content) && (
-          <div className="bg-gray-50 p-3 rounded-lg mb-3 border">
-            <p className="font-semibold">{title || "No title yet..."}</p>
-            <p className="text-sm text-gray-600">
-              {content || "Start typing content..."}
-            </p>
-          </div>
-        )}
-
-        <div className="flex gap-2">
-          <button
-            onClick={addNote}
-            className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-lg font-semibold transition transform hover:scale-105"
-          >
-            ➕ Add Note
-          </button>
-
-          <button
-            onClick={() => {
-              setTitle("");
-              setContent("");
-            }}
-            className="bg-gray-300 hover:bg-gray-400 px-4 rounded-lg transition"
-          >
-            Clear
-          </button>
-        </div>
-      </div>
-
-      {/* LOADING */}
-      {loading && (
-        <p className="text-center mt-6 text-gray-600">Loading notes...</p>
-      )}
-
-      {/* EMPTY STATE */}
-      {!loading && notes.length === 0 && (
-        <p className="text-center mt-6 text-gray-500">
-          No notes yet 😴 Add your first note!
-        </p>
-      )}
-
-      {/* NOTES GRID */}
-      <div className="max-w-5xl mx-auto mt-8 grid grid-cols-1 md:grid-cols-3 gap-5">
-        {notes.map((note) => (
-          <div
-            key={note.id}
-            className="bg-white p-4 rounded-xl shadow hover:shadow-xl transition transform hover:-translate-y-1"
-          >
-            <h2 className="font-bold text-lg mb-2">{note.title}</h2>
-            <p className="text-gray-600 mb-4">{note.content}</p>
-
-            <button
-              onClick={() => deleteNote(note.id)}
-              className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-lg transition"
+      {/* NOTES LIST */}
+      <div style={{ marginTop: "20px" }}>
+        {notes.length === 0 ? (
+          <p>No notes yet 😴 Add your first note!</p>
+        ) : (
+          notes.map((note) => (
+            <div
+              key={note.id}
+              style={{
+                border: "1px solid #ddd",
+                padding: "10px",
+                marginTop: "10px",
+                borderRadius: "8px",
+              }}
             >
-              Delete
-            </button>
-          </div>
-        ))}
+              <h3>{note.title}</h3>
+              <p>{note.content}</p>
+
+              <button
+                onClick={() => deleteNote(note.id)}
+                style={{
+                  marginTop: "5px",
+                  padding: "5px 10px",
+                  background: "red",
+                  color: "white",
+                  border: "none",
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          ))
+        )}
       </div>
-    </div>
+    </main>
   );
 }
