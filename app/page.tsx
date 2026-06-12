@@ -246,24 +246,26 @@ const styles: any = {
     boxShadow: "0 4px 10px rgba(0,0,0,0.05)",
   },
 
-  input: {
-    width: "100%",
-    padding: 12,
-    marginBottom: 10,
-    borderRadius: 10,
-    border: "1px solid #0b0b0b",
-    outline: "none",
-  },
+input: {
+  width: "100%",
+  padding: 12,
+  marginBottom: 10,
+  borderRadius: 10,
+  border: "1px solid #e4e4e4",
+  outline: "none",
+  color: "#000",   // ✅ BLACK TEXT
+},
 
-  textarea: {
-    width: "100%",
-    padding: 12,
-    height: 100,
-    borderRadius: 10,
-    border: "1px solid #ddd",
-    marginBottom: 10,
-    outline: "none",
-  },
+textarea: {
+  width: "100%",
+  padding: 12,
+  height: 100,
+  borderRadius: 10,
+  border: "1px solid #ddd",
+  marginBottom: 10,
+  outline: "none",
+  color: "#000",   // ✅ BLACK TEXT
+},
 
   button: {
     width: "100%",
