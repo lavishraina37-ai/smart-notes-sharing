@@ -25,7 +25,7 @@ export default function Page() {
 
   const [editId, setEditId] = useState<string | null>(null);
 
-  // 📥 fetch notes
+  // 📥 FETCH NOTES
   const fetchNotes = async () => {
     const { data } = await supabase
       .from("notes")
@@ -38,8 +38,9 @@ export default function Page() {
   useEffect(() => {
     fetchNotes();
 
+    // ⚡ REAL-TIME SYNC
     const channel = supabase
-      .channel("notes-live")
+      .channel("notes-channel")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "notes" },
@@ -52,7 +53,7 @@ export default function Page() {
     };
   }, []);
 
-  // ➕ SAVE (instant UI update)
+  // ➕ ADD / UPDATE (INSTANT UI FIX)
   const saveNote = async () => {
     if (!title || !subject || !description) return;
 
@@ -86,7 +87,7 @@ export default function Page() {
     setDescription("");
   };
 
-  // ❌ DELETE instant
+  // ❌ DELETE (INSTANT)
   const deleteNote = async (id: string) => {
     await supabase.from("notes").delete().eq("id", id);
     setNotes((prev) => prev.filter((n) => n.id !== id));
@@ -108,90 +109,101 @@ export default function Page() {
   );
 
   return (
-    <div style={styles.page}>
+    <>
+      {/* 🎨 PLACEHOLDER COLOR FIX (INSIDE PAGE.TSX) */}
+      <style>{`
+        input::placeholder,
+        textarea::placeholder {
+          color: #60a5fa;
+          opacity: 1;
+        }
+      `}</style>
 
-      {/* 🌈 HEADER */}
-      <div style={styles.header}>
-        <h1 style={styles.title}>🧠 Smart Notes App</h1>
-        <p style={styles.subtitle}>Write • Organize • Search • Edit</p>
-      </div>
+      <div style={styles.page}>
 
-      {/* 🔍 SEARCH */}
-      <input
-        placeholder="🔍 Search notes..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        style={styles.search}
-      />
+        {/* HEADER */}
+        <div style={styles.header}>
+          <h1 style={styles.title}>🧠 Smart Notes App</h1>
+          <p style={styles.subtitle}>Write • Organize • Search • Edit</p>
+        </div>
 
-      {/* ➕ FORM */}
-      <div style={styles.card}>
-
+        {/* SEARCH */}
         <input
-          placeholder="✏️ Title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          style={styles.input}
+          placeholder="🔍 Search notes..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={styles.search}
         />
 
-        <input
-          placeholder="📚 Subject"
-          value={subject}
-          onChange={(e) => setSubject(e.target.value)}
-          style={styles.input}
-        />
+        {/* FORM */}
+        <div style={styles.card}>
 
-        <textarea
-          placeholder="📝 Description"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          style={styles.textarea}
-        />
+          <input
+            placeholder="✏️ Title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            style={styles.input}
+          />
 
-        <button onClick={saveNote} style={styles.button}>
-          {editId ? "Update Note ✨" : "Add Note 🚀"}
-        </button>
+          <input
+            placeholder="📚 Subject"
+            value={subject}
+            onChange={(e) => setSubject(e.target.value)}
+            style={styles.input}
+          />
 
-      </div>
+          <textarea
+            placeholder="📝 Description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            style={styles.textarea}
+          />
 
-      {/* 📄 NOTES */}
-      {filtered.length === 0 ? (
-        <p style={styles.empty}>No notes found 😴</p>
-      ) : (
-        filtered.map((note) => (
-          <div
-            key={note.id}
-            style={styles.noteCard}
-            onMouseEnter={(e) =>
-              (e.currentTarget.style.transform = "scale(1.02)")
-            }
-            onMouseLeave={(e) =>
-              (e.currentTarget.style.transform = "scale(1)")
-            }
-          >
-            <h2 style={styles.noteTitle}>{note.title}</h2>
+          <button onClick={saveNote} style={styles.button}>
+            {editId ? "Update Note ✨" : "Add Note 🚀"}
+          </button>
 
-            <span style={styles.badge}>{note.subject}</span>
+        </div>
 
-            <p style={styles.noteDesc}>{note.description}</p>
+        {/* NOTES */}
+        {filtered.length === 0 ? (
+          <p style={styles.empty}>No notes found 😴</p>
+        ) : (
+          filtered.map((note) => (
+            <div
+              key={note.id}
+              style={styles.noteCard}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.transform = "scale(1.02)")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.transform = "scale(1)")
+              }
+            >
+              <h2 style={styles.noteTitle}>{note.title}</h2>
 
-            <div style={styles.actions}>
-              <button onClick={() => editNote(note)} style={styles.edit}>
-                Edit
-              </button>
+              <span style={styles.badge}>{note.subject}</span>
 
-              <button onClick={() => deleteNote(note.id)} style={styles.delete}>
-                Delete
-              </button>
+              <p style={styles.noteDesc}>{note.description}</p>
+
+              <div style={styles.actions}>
+                <button onClick={() => editNote(note)} style={styles.edit}>
+                  Edit
+                </button>
+
+                <button onClick={() => deleteNote(note.id)} style={styles.delete}>
+                  Delete
+                </button>
+              </div>
             </div>
-          </div>
-        ))
-      )}
-    </div>
+          ))
+        )}
+      </div>
+    </>
   );
 }
 
-/* 🎨 STYLES (RESTORED + IMPROVED) */
+/* 🎨 UI STYLES (UNCHANGED) */
 const styles: any = {
   page: {
     minHeight: "100vh",
